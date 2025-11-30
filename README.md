@@ -4,7 +4,96 @@
 
 ## Akses Soal
 
-## MISI 1
+## MISI 1 
+
+**Topik:** Infrastruktur Jaringan Aliansi (Routing VLSM, DHCP, DNS, & Web Server)  
+**Domain:** `k16.com`  
+**Base IP:** `192.219.0.0`  
+**Environment:** GNS3 (Docker Image: `nevarre/gns3-debi:new`)
+
+---
+
+## 🗺️ I. Desain Jaringan & VLSM
+
+Kami menerapkan teknik **Supernetting** pada jalur Kanan (Minastir) untuk menyederhanakan routing table di pusat (Osgiliath), dan **Fixed Subnetting** pada jalur Kiri dan Bawah.
+
+### 📊 Tabel Pembagian IP Final
+
+| Wilayah | Node / Subnet | Prefix | Network ID | Range IP | Gateway |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **MINASTIR** | **Supernet Area** | **/23** | **192.219.0.0** | `0.1` - `1.254` | **Osgiliath (.0.1)** |
+| ├── | Elendil & Isildur | /24 | 192.219.0.0 | `0.1` - `0.254` | Minastir (.0.3) |
+| ├── | Gilgalad & Cirdan | /25 | 192.219.1.0 | `1.1` - `1.126` | AnduinBanks (.1.1) |
+| ├── | Link & Web Server 2 | /29 | 192.219.1.x | `1.129` - ... | (Pelargir Area) |
+| | | | | | |
+| **MORIA** | **Subnet Area** | **/25** | **192.219.2.0** | `2.1` - `2.126` | **Osgiliath (.2.1)** |
+| ├── | Durin (Client) | /26 | 192.219.2.0 | `2.1` - `2.62` | Wilderland (.2.3) |
+| ├── | Khamul (Client) | /29 | 192.219.2.64 | `2.65` - `2.70` | Wilderland (.2.65) |
+| ├── | IronHills (Web) | /29 | 192.219.2.80 | `2.81` - `2.86` | Moria (.2.81) |
+| | | | | | |
+| **RIVENDELL**| **Server Farm** | **/25** | **192.219.2.128**| `2.129` - `2.254`| **Osgiliath (.2.129)**|
+| └── | Vilya & Narya | /29 | 192.219.2.136| `2.137` - `2.142`| Rivendell (.2.137) |
+
+---
+
+## 🛠️ II. Konfigurasi Routing & Backbone
+
+### 1. OSGILIATH (Router Pusat)
+Berfungsi sebagai gerbang internet (NAT).
+*   **NAT:** Menggunakan `SNAT` (Source NAT) tanpa Masquerade.
+*   **MSS Clamping:** Diaktifkan (`iptables -t mangle ... TCPMSS`) untuk mencegah packet loss/timeout pada jaringan simulasi.
+*   **Routing:** Mengarahkan Supernet Minastir (`0.0/23`) ke router Minastir dan Subnet Server ke Rivendell.
+
+### 2. MORIA (Router Kiri)
+*   **Problem:** Konflik VLSM (Longest Prefix Match) dimana IP Osgiliath (`2.1`) tertutup oleh Subnet Durin (`2.0/26`).
+*   **Solusi:**
+    *   Mengaktifkan **Proxy ARP**.
+    *   Menambahkan **Exception Route /32** agar paket ke Osgiliath tidak dilempar balik ke Wilderland.
+
+### 3. MINASTIR - PELARGIR (Router Kanan)
+*   **Problem:** Routing Loop (Ping-Pong) paket nyasar antara router bertingkat.
+*   **Solusi:** Menambahkan **Blackhole Route** (`ip route add blackhole ...`) untuk membuang paket yang tujuannya tidak valid, mencegah CPU Load 100%.
+
+---
+
+## 🖥️ III. Konfigurasi Service (Server)
+
+### 1. VILYA (DHCP Server - ISC DHCP)
+*   **Config:** Memberikan IP ke seluruh client via Relay.
+*   **Fix:** Gateway untuk subnet Durin diarahkan ke **Wilderland (.2.3)**, bukan Osgiliath.
+*   **Fix:** Gateway untuk subnet Elendil diarahkan ke **Minastir (.0.3)**.
+
+### 2. NARYA (DNS Server - Bind9)
+*   **Forwarder:** Google DNS (8.8.8.8).
+*   **Fix SERVFAIL:** Menonaktifkan `dnssec-validation no;` agar domain lokal `k16.com` dapat di-resolve.
+*   **Records:** `www` diarahkan ke Web Server (IronHills/Palantir).
+
+### 3. IRONHILLS & PALANTIR (Web Server)
+*   **Stack:** Nginx + PHP 8.4 (FPM).
+*   **Fix 502 Bad Gateway:** Menyesuaikan konfigurasi `fastcgi_pass` Nginx agar mengarah ke socket PHP yang tepat (`php8.4-fpm.sock`).
+*   **Fix 403 Forbidden:** Memastikan izin akses folder web dimiliki oleh user `www-data`.
+
+---
+
+## ✅ IV. Hasil Akhir Misi 1
+
+| Komponen | Status | Bukti |
+| :--- | :---: | :--- |
+| **Routing** | ✅ OK | Ping antar ujung (Durin -> Elendil) berhasil. |
+| **Internet** | ✅ OK | `ping 8.8.8.8` reply dari semua node. |
+| **DHCP** | ✅ OK | Client mendapatkan IP & Gateway yang valid. |
+| **DNS** | ✅ OK | `nslookup k16.com` menghasilkan IP Web Server. |
+| **Web** | ✅ OK | `lynx www.k16.com` menampilkan halaman "WELCOME". |
+
+---
+
+Ping Internet & DHCP RELAY
+<img width="1600" height="858" alt="image" src="https://github.com/user-attachments/assets/16d5a409-742d-4264-a35d-20188bb1ba4e" />
+
+Webserver
+<img width="966" height="497" alt="image" src="https://github.com/user-attachments/assets/240e03fc-1d44-4cfb-aa15-eeea687c0ffc" />
+
+
 ## Misi 2: Menemukan Jejak Kegelapan (Security Rules)
 ### 1
 Agar jaringan Aliansi bisa terhubung ke luar (Valinor/Internet), konfigurasi routing menggunakan iptables (TIDAK DIPERBOLEHKAN menggunakan target MASQUERADE).
