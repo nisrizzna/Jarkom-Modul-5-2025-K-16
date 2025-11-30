@@ -75,30 +75,7 @@ Berfungsi sebagai gerbang internet (NAT).
 
 ---
 
-## 🚑 IV. Dokumentasi Troubleshooting
-
-### 🔴 Masalah 1: "Destination Host Unreachable" (Ping Osgiliath Gagal)
-*   **Penyebab:** Router anak (Moria/Wilderland) mengira IP Osgiliath berada di subnet lokal (bawah) karena overlap VLSM.
-*   **Solusi:** Menambahkan route spesifik: `ip route add 192.219.2.1/32 dev eth0`.
-
-### 🔴 Masalah 2: Client Dapat IP Tapi Tidak Bisa Internet
-*   **Penyebab:** DHCP Server memberikan Default Gateway yang salah (mengarah ke Router Pusat, bukan Relay terdekat).
-*   **Solusi:** Edit `dhcpd.conf` di Vilya, ubah `option routers` sesuai IP Relay masing-masing wilayah.
-
-### 🔴 Masalah 3: "Network Unreachable" saat apt update
-*   **Penyebab:** IPv6 aktif (mencoba connect via IPv6 lalu timeout) dan MTU interface terlalu besar (1500).
-*   **Solusi:**
-    1.  Disable IPv6 via sysctl.
-    2.  Set MTU interface ke 1280.
-    3.  Ganti repository ke Kartolo (HTTP).
-
-### 🔴 Masalah 4: DNS SERVFAIL
-*   **Penyebab:** Validasi DNSSEC gagal karena domain `k16.com` tidak terdaftar resmi di internet.
-*   **Solusi:** Set `dnssec-validation no;` pada konfigurasi Bind9.
-
----
-
-## ✅ V. Hasil Akhir Misi 1
+## ✅ IV. Hasil Akhir Misi 1
 
 | Komponen | Status | Bukti |
 | :--- | :---: | :--- |
@@ -109,7 +86,12 @@ Berfungsi sebagai gerbang internet (NAT).
 | **Web** | ✅ OK | `lynx www.k16.com` menampilkan halaman "WELCOME". |
 
 ---
-*Laporan dibuat oleh Kelompok 16 - Praktikum Jarkom Modul 5.*
+
+Ping Internet & DHCP RELAY
+<img width="1600" height="858" alt="image" src="https://github.com/user-attachments/assets/16d5a409-742d-4264-a35d-20188bb1ba4e" />
+
+Webserver
+<img width="966" height="497" alt="image" src="https://github.com/user-attachments/assets/240e03fc-1d44-4cfb-aa15-eeea687c0ffc" />
 
 
 ## Misi 2: Menemukan Jejak Kegelapan (Security Rules)
